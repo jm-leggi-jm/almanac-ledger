@@ -151,6 +151,18 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .chart .end-label { fill: var(--text-2); font-size: 12px; font-weight: 600; }
 .chart .cross { stroke: var(--axis); stroke-width: 1; }
 .chart .dot { stroke: var(--surface); stroke-width: 2; }
+
+/* Rain and snow by day, under the 16-day chart: a label column, then one column per day */
+.fc-precip { margin-top: 10px; display: grid; gap: 3px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pc-row { display: grid; grid-template-columns: 52px repeat(16, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.pc-label { color: var(--muted); font-size: 11px; align-self: center; }
+.pc-head { text-align: center; font-weight: 600; color: var(--text-2); font-size: 11px; line-height: 1.2; }
+.pc-head span { display: block; font-weight: 400; color: var(--muted); }
+.pc-cell { text-align: center; padding: 3px 0; border-radius: 4px; }
+/* Tint by amount: --amt runs 0 to 1 (a half inch of rain, or 4 inches of snow, is full strength). */
+.pc-cell.rain { background: color-mix(in srgb, var(--cool) calc(var(--amt, 0) * 55%), transparent); }
+.pc-cell.snow { background: color-mix(in srgb, #9fb6d9 calc(var(--amt, 0) * 60%), transparent); }
+
 .tooltip {
   position: fixed; z-index: 20; pointer-events: none;
   background: var(--surface); color: var(--text-1); border: 1px solid var(--border); border-radius: 8px;

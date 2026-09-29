@@ -117,7 +117,7 @@
     return `<strong>${Dates.weekday(r.date)} ${Dates.short(r.date)}</strong>
       <div>High ${Math.round(r.tmax)}°${vsNormal(r.tmax, r.nmax)}</div>
       <div>Low ${Math.round(r.tmin)}°${vsNormal(r.tmin, r.nmin)}</div>
-      <div>Precip ${r.precip.toFixed(2)}″${r.snow > 0.05 ? ` · Snow ${r.snow.toFixed(1)}″` : ''}</div>`;
+      <div>Rain ${(r.rain ?? r.precip).toFixed(2)}″${r.snow > 0.05 ? ` · Snow ${r.snow.toFixed(1)}″` : ''}${r.pop == null ? '' : ` · ${Math.round(r.pop)}% chance`}</div>`;
   }
 
   function drawForecastChart() {
@@ -136,6 +136,23 @@
       return { date, ...data.fc[date], nmax: n?.tmax ?? null, nmin: n?.tmin ?? null };
     });
     drawForecastChart();
+    renderPrecip(chartRows);
+  }
+
+  // Rain, snow and chance of precipitation for each forecast day, in columns under the chart.
+  // Heavier amounts get a stronger tint so wet days stand out at a glance.
+  function renderPrecip(rows) {
+    const amount = (v, unit, min, digits) => (v == null || v < min ? '<span class="muted">—</span>' : `${v.toFixed(digits)}${unit}`);
+    const tint = (v, full) => (v > 0 ? ` style="--amt:${Math.min(1, v / full).toFixed(2)}"` : '');
+    const head = (r, i) => `<div class="pc-head" role="columnheader">${i === 0 ? 'Today' : Dates.weekday(r.date)}<span>${Dates.short(r.date)}</span></div>`;
+    $('fc-precip').innerHTML = `
+      <div class="pc-row" role="row"><div class="pc-label" role="rowheader"></div>${rows.map(head).join('')}</div>
+      <div class="pc-row" role="row"><div class="pc-label" role="rowheader">Rain</div>
+        ${rows.map((r) => `<div class="pc-cell rain" role="cell"${tint(r.rain ?? r.precip, 0.5)}>${amount(r.rain ?? r.precip, '″', 0.01, 2)}</div>`).join('')}</div>
+      <div class="pc-row" role="row"><div class="pc-label" role="rowheader">Snow</div>
+        ${rows.map((r) => `<div class="pc-cell snow" role="cell"${tint(r.snow, 4)}>${amount(r.snow, '″', 0.1, 1)}</div>`).join('')}</div>
+      <div class="pc-row" role="row"><div class="pc-label" role="rowheader">Chance</div>
+        ${rows.map((r) => `<div class="pc-cell" role="cell">${r.pop == null ? '<span class="muted">—</span>' : `${Math.round(r.pop)}%`}</div>`).join('')}</div>`;
   }
 
   // ---------- Forecast vs. actual ----------

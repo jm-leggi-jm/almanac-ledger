@@ -32,8 +32,10 @@ const Weather = (() => {
       if (tmax == null || tmin == null) return;
       map[date] = {
         tmax, tmin,
-        precip: daily.precipitation_sum[i] ?? 0,
-        snow: daily.snowfall_sum[i] ?? 0,
+        precip: daily.precipitation_sum[i] ?? 0,       // rain + melted snow
+        snow: daily.snowfall_sum[i] ?? 0,              // snow depth
+        rain: daily.rain_sum ? daily.rain_sum[i] ?? 0 : null,                      // forecast only
+        pop: daily.precipitation_probability_max ? daily.precipitation_probability_max[i] ?? null : null,
       };
     });
     return map;
@@ -68,7 +70,7 @@ const Weather = (() => {
 
   // past_days bridges the gap between the archive's last date and today.
   async function forecast(loc) {
-    const data = await getJSON(`${FORECAST}?latitude=${loc.lat}&longitude=${loc.lon}&daily=${DAILY}&past_days=7&forecast_days=16&${UNITS}`);
+    const data = await getJSON(`${FORECAST}?latitude=${loc.lat}&longitude=${loc.lon}&daily=${DAILY},rain_sum,precipitation_probability_max&past_days=7&forecast_days=16&${UNITS}`);
     return toDayMap(data.daily);
   }
 
