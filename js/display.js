@@ -96,16 +96,15 @@
     body.innerHTML = `
       <p class="acc-caption">Forecasts made ${ahead}</p>
       <div class="d-stats">
-        <div><span>Highs off by</span><strong>±${s.highMiss.toFixed(1)}°</strong></div>
-        <div><span>Lows off by</span><strong>±${s.lowMiss.toFixed(1)}°</strong></div>
+        <div><span>Highs</span><strong>±${s.highMiss.toFixed(1)}°</strong></div>
+        <div><span>Lows</span><strong>±${s.lowMiss.toFixed(1)}°</strong></div>
         <div><span>Within 3°</span><strong>${pct(s.within3)}</strong></div>
-        <div><span>Rain called right</span><strong>${pct(s.rainRight)}</strong></div>
+        <div><span>Rain right</span><strong>${pct(s.rainRight)}</strong></div>
       </div>
-      <p class="acc-caption">Average miss by how far ahead the forecast was made</p>
-      <div class="d-leads">
+      <div class="d-leads" aria-label="Average miss by how many days ahead the forecast was made">
         ${byLead.map(({ k, s: x }) => `
           <div class="d-lead${k === lead ? ' on' : ''}">
-            <span>${k} day${k === 1 ? '' : 's'}</span><span class="lead-bar"><i style="width:${(x.tempMiss / worst) * 100}%"></i></span><b>±${x.tempMiss.toFixed(1)}°</b>
+            <span>${k}d</span><span class="lead-bar"><i style="width:${(x.tempMiss / worst) * 100}%"></i></span><b>±${x.tempMiss.toFixed(1)}°</b>
           </div>`).join('')}
       </div>`;
   }

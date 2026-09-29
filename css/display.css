@@ -42,16 +42,16 @@ body.display.transparent .panel {
 .radar-kiosk .radar-legend { margin-top: 0.3rem; order: 3; font-size: 0.75rem; }
 
 /* Forecast accuracy: headline numbers for the chosen lead, then a bar per lead time */
-.acc-caption { margin: 0 0 0.45rem; color: var(--text-2); font-size: 0.85rem; }
-.d-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 0.6rem; }
+.acc-caption { margin: 0 0 0.5rem; color: var(--text-2); font-size: 0.85rem; }
+.d-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 0.7rem; }
 .d-stats > div { display: flex; flex-direction: column; padding: 0.35rem 0.6rem; border: 1px solid var(--grid); border-radius: 0.5rem; min-width: 0; }
-.d-stats span { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.d-stats strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.d-stats span { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-stats strong { font-size: 1.45rem; font-variant-numeric: tabular-nums; }
 .d-leads { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; }
-.d-lead { display: grid; grid-template-columns: 4.2rem 1fr 3.4rem; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: var(--text-2); }
+.d-lead { display: grid; grid-template-columns: 2.2rem 1fr 3.4rem; align-items: center; gap: 0.6rem; font-size: 0.85rem; }
 .d-lead b { text-align: right; font-variant-numeric: tabular-nums; }
 .d-lead.on span:first-child, .d-lead.on b { color: var(--text-1); font-weight: 700; }
-.d-lead .lead-bar { height: 0.6rem; }
+.d-lead .lead-bar { height: 0.55rem; }
 
 .board-foot {
   display: flex; justify-content: space-between; gap: 1rem;
