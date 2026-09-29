@@ -229,7 +229,7 @@
         <span class="lead-name">${aheadText(k)}</span>
         <span class="lead-bar" aria-hidden="true"><i style="width:${(s.tempMiss / worst) * 100}%"></i></span>
         <strong>±${s.tempMiss.toFixed(1)}°</strong>
-        <span class="muted small">${Math.round((s.rainRight / s.n) * 100)}% rain right</span>
+        <span class="muted small">${Math.round((s.rainRight / s.n) * 100)}% rain accuracy</span>
       </button>` : '')).join('');
 
     // Headline tiles for the chosen lead
@@ -245,7 +245,7 @@
         tile('Lows', `±${s.lowMiss.toFixed(1)}°`, 'average miss'),
         tile('Within 3°', `${Math.round((s.within3 / s.n) * 100)}%`, `${s.within3} of ${s.n} days, high and low`),
         tile('Leaning', leanPhrase(s.bias), 'forecast vs. actual, on average'),
-        tile('Rain called right', `${s.rainRight} / ${s.n}`, `${s.rainMissed} missed · ${s.falseAlarms} false alarm${s.falseAlarms === 1 ? '' : 's'}`),
+        tile('Rain accuracy', `${s.rainRight} / ${s.n}`, `${s.rainMissed} missed · ${s.falseAlarms} false alarm${s.falseAlarms === 1 ? '' : 's'}`),
       ].join('');
       vaRows = rows.map((r) => ({
         date: r.date,
@@ -261,7 +261,7 @@
     const months = Verify.byMonth(Verify.pairs(verif.fc, actual, lead, start, to));
     $('va-months').innerHTML = `
       <table class="num">
-        <thead><tr><th>Month</th><th>Highs</th><th>Lows</th><th>Within 3°</th><th>Leaning</th><th>Rain right</th><th>Days</th></tr></thead>
+        <thead><tr><th>Month</th><th>Highs</th><th>Lows</th><th>Within 3°</th><th>Leaning</th><th>Rain accuracy</th><th>Days</th></tr></thead>
         <tbody>${months.map(({ month, summary: m }) => `
           <tr>
             <td>${new Date(`${month}-01T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>

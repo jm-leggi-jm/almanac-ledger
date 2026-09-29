@@ -103,7 +103,7 @@
         <div><span>Highs</span><strong>±${s.highMiss.toFixed(1)}°</strong></div>
         <div><span>Lows</span><strong>±${s.lowMiss.toFixed(1)}°</strong></div>
         <div><span>Within 3°</span><strong>${pct(s.within3)}</strong></div>
-        <div><span>Rain right</span><strong>${pct(s.rainRight)}</strong></div>
+        <div><span>Rain accuracy</span><strong>${pct(s.rainRight)}</strong></div>
       </div>
       <div class="d-leads" aria-label="Average miss by how many days ahead the forecast was made">
         ${byLead.map(({ k, s: x }) => `
