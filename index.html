@@ -104,14 +104,8 @@
   <dialog id="display-dialog" class="dialog" aria-labelledby="dd-title">
     <h2 id="dd-title">DAKboard display</h2>
     <p class="fine">Builds the address for a wall display of <span id="dd-place"></span>. In DAKboard, add a
-      <strong>Website/iframe</strong> block to a Custom Screen and paste this address in.</p>
-    <fieldset class="dd-panels">
-      <legend>Panels</legend>
-      <label><input type="checkbox" value="radar" checked> Radar</label>
-      <label><input type="checkbox" value="forecast"> Next 16 days</label>
-      <label><input type="checkbox" value="accuracy" checked> Forecast accuracy</label>
-      <label><input type="checkbox" value="actual" checked> Forecast vs. actual</label>
-    </fieldset>
+      <strong>Website/iframe</strong> block to a Custom Screen and paste this address in. The display shows two panels:
+      the looping radar, and forecast vs. actual for the last 30 days.</p>
     <div class="dd-grid">
       <label>Background
         <select id="dd-theme">
@@ -123,14 +117,6 @@
       </label>
       <label>Forecast made
         <select id="dd-lead"></select>
-      </label>
-      <label>Accuracy period
-        <select id="dd-days">
-          <option value="14">Last 14 days</option>
-          <option value="30" selected>Last 30 days</option>
-          <option value="60">Last 60 days</option>
-          <option value="90">Last 90 days</option>
-        </select>
       </label>
       <label>Radar view
         <select id="dd-zoom">

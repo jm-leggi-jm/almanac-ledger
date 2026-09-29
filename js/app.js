@@ -467,23 +467,21 @@
 
   function displayUrl() {
     const loc = state.location;
-    const panels = [...document.querySelectorAll('.dd-panels input:checked')].map((i) => i.value);
     const params = new URLSearchParams({
       lat: loc.lat.toFixed(4), lon: loc.lon.toFixed(4), name: loc.name,
-      panels: panels.join(','), theme: $('dd-theme').value,
-      lead: $('dd-lead').value, days: $('dd-days').value, zoom: $('dd-zoom').value,
+      theme: $('dd-theme').value, lead: $('dd-lead').value, zoom: $('dd-zoom').value,
     });
     const base = displayBase();
-    return { base, url: `${base || new URL('display.html', location.href).href}?${params}`, panels };
+    return { base, url: `${base || new URL('display.html', location.href).href}?${params}` };
   }
 
   function updateDisplayUrl() {
-    const { base, url, panels } = displayUrl();
+    const { base, url } = displayUrl();
     $('dd-url').value = url;
-    $('dd-copy').disabled = !base || !panels.length;
-    $('dd-preview').disabled = !panels.length || (!base && location.protocol === 'https:');
-    $('dd-note').textContent = !panels.length ? 'Pick at least one panel.'
-      : base ? 'The display refreshes itself: radar every 5 minutes, weather every 30, and a full reload daily around 3 a.m.'
+    $('dd-copy').disabled = !base;
+    $('dd-preview').disabled = !base && location.protocol === 'https:';
+    $('dd-note').textContent = base
+      ? 'The display refreshes itself: radar every 5 minutes, forecast vs. actual every 30, and a full reload daily around 3 a.m.'
       : 'The site isn’t published yet, so DAKboard can’t reach this address. Run deploy.ps1 (see the README), then reopen this.';
   }
 
