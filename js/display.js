@@ -1,6 +1,6 @@
 // Wall-display view (DAKboard Website/iframe block and similar): hands-off, sized to its frame,
 // configured by URL parameters, and refreshes its own data on a schedule. Two panels: the looping
-// radar, and forecast vs. actual for the last 30 days.
+// radar, and forecast accuracy for the last 30 days.
 (() => {
   const DAYS = 30;
   const DATA_REFRESH_MS = 30 * 60 * 1000;
@@ -40,9 +40,9 @@
       <h2 class="panel-title">Radar</h2>
       <div class="panel-body" id="body-radar"></div>
     </section>
-    <section class="panel" data-panel="actual">
-      <h2 class="panel-title">Forecast vs. actual<span class="panel-sub"> · last ${DAYS} days, forecasts made ${ahead}</span></h2>
-      <div class="panel-body" id="body-actual"><p class="panel-wait">Loading…</p></div>
+    <section class="panel" data-panel="accuracy">
+      <h2 class="panel-title">Forecast accuracy<span class="panel-sub"> · last ${DAYS} days</span></h2>
+      <div class="panel-body" id="body-accuracy"><p class="panel-wait">Loading…</p></div>
     </section>`;
   $('d-place').textContent = loc.name;
 
@@ -78,44 +78,36 @@
     el.classList.toggle('warn', !!failed);
   }
 
-  // ---------- Forecast vs. actual ----------
+  // ---------- Forecast accuracy ----------
 
-  const series = [
-    { key: 'ahi', label: 'Actual high', color: 'var(--warm)' },
-    { key: 'fhi', label: 'Forecast high', color: 'var(--warm)', dashed: true },
-    { key: 'alo', label: 'Actual low', color: 'var(--cool)' },
-    { key: 'flo', label: 'Forecast low', color: 'var(--cool)', dashed: true },
-  ];
-
+  // Headline numbers for forecasts made `lead` days ahead, then the average miss for every lead
+  // time (1–7 days ahead), so you can see accuracy fall off the further out a forecast is.
   function render() {
-    const body = $('body-actual');
+    const body = $('body-accuracy');
     if (!pastFc || !recent || !fc) return;
     const today = Dates.today();
-    const pairs = Verify.pairs(pastFc, { ...fc, ...recent }, lead, Dates.addDays(today, -DAYS), Dates.addDays(today, -1));
-    const s = Verify.summarize(pairs);
+    const actual = { ...fc, ...recent };
+    const rowsFor = (k) => Verify.pairs(pastFc, actual, k, Dates.addDays(today, -DAYS), Dates.addDays(today, -1));
+    const s = Verify.summarize(rowsFor(lead));
+    if (!s) { body.innerHTML = '<p class="panel-wait">No data yet</p>'; return; }
     const pct = (a) => `${Math.round((a / s.n) * 100)}%`;
-    const rows = pairs.map((r) => ({
-      date: r.date,
-      ahi: r.actual ? r.actual.tmax : null, alo: r.actual ? r.actual.tmin : null,
-      fhi: r.forecast ? r.forecast.tmax : null, flo: r.forecast ? r.forecast.tmin : null,
-    }));
+    const byLead = Verify.LEADS.map((k) => ({ k, s: Verify.summarize(rowsFor(k)) })).filter((x) => x.s);
+    const worst = Math.max(...byLead.map((x) => x.s.tempMiss), 0.1);
     body.innerHTML = `
-      ${s ? `<div class="d-stats" aria-label="Average forecast miss, last ${DAYS} days">
+      <p class="acc-caption">Forecasts made ${ahead}</p>
+      <div class="d-stats">
         <div><span>Highs off by</span><strong>±${s.highMiss.toFixed(1)}°</strong></div>
         <div><span>Lows off by</span><strong>±${s.lowMiss.toFixed(1)}°</strong></div>
         <div><span>Within 3°</span><strong>${pct(s.within3)}</strong></div>
         <div><span>Rain called right</span><strong>${pct(s.rainRight)}</strong></div>
-      </div>` : ''}
-      <div class="legend d-legend"></div>
-      <div class="chart d-chart"></div>`;
-    Chart.legend(body.querySelector('.d-legend'), series);
-    const chartEl = body.querySelector('.d-chart');
-    Chart.render(chartEl, rows, {
-      series, tooltip: $('tooltip'), height: chartEl.clientHeight,
-      tip: (r) => `<strong>${Dates.short(r.date)}</strong><div>High ${r.ahi == null ? '—' : Math.round(r.ahi) + '°'} · forecast ${r.fhi == null ? '—' : Math.round(r.fhi) + '°'}</div><div>Low ${r.alo == null ? '—' : Math.round(r.alo) + '°'} · forecast ${r.flo == null ? '—' : Math.round(r.flo) + '°'}</div>`,
-      xLabel: (r) => Dates.short(r.date),
-      ariaLabel: `Actual daily highs and lows against the forecast made ${ahead}, last ${DAYS} days`,
-    });
+      </div>
+      <p class="acc-caption">Average miss by how far ahead the forecast was made</p>
+      <div class="d-leads">
+        ${byLead.map(({ k, s: x }) => `
+          <div class="d-lead${k === lead ? ' on' : ''}">
+            <span>${k} day${k === 1 ? '' : 's'}</span><span class="lead-bar"><i style="width:${(x.tempMiss / worst) * 100}%"></i></span><b>±${x.tempMiss.toFixed(1)}°</b>
+          </div>`).join('')}
+      </div>`;
   }
 
   // ---------- Schedule ----------

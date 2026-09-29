@@ -481,7 +481,7 @@
     $('dd-copy').disabled = !base;
     $('dd-preview').disabled = !base && location.protocol === 'https:';
     $('dd-note').textContent = base
-      ? 'The display refreshes itself: radar every 5 minutes, forecast vs. actual every 30, and a full reload daily around 3 a.m.'
+      ? 'The display refreshes itself: radar every 5 minutes, forecast accuracy every 30, and a full reload daily around 3 a.m.'
       : 'The site isn’t published yet, so DAKboard can’t reach this address. Run deploy.ps1 (see the README), then reopen this.';
   }
 
