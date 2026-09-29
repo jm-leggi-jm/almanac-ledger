@@ -28,8 +28,12 @@
 
   if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme;
   if (theme === 'transparent') {
-    document.documentElement.dataset.theme = 'dark';
+    document.documentElement.dataset.theme = 'dark';   // dark colors for text and panels
     document.body.classList.add('transparent');
+    // But not a dark color scheme: when a framed page's color scheme differs from the page around it
+    // (DAKboard's), browsers paint an opaque backdrop behind the frame, hiding the background.
+    document.documentElement.style.colorScheme = 'normal';
+    document.documentElement.style.background = 'transparent';
   }
 
   // ---------- Layout ----------

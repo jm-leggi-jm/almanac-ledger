@@ -59,3 +59,5 @@ body.display.transparent .panel {
 }
 .board-foot .warn { color: var(--bad); }
 body.display.transparent .board-foot { color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
+body.display.transparent .lead-bar { background: rgba(255, 255, 255, 0.14); }
+body.display.transparent .d-stats > div { border-color: rgba(255, 255, 255, 0.14); }
