@@ -53,11 +53,23 @@
   let chartRows = null;
   let vaRows = null;
 
+  function isLocation(loc) {
+    return !!loc && typeof loc.name === 'string' && loc.name.trim().length > 0 && loc.name.length <= 120
+      && typeof loc.lat === 'number' && typeof loc.lon === 'number'
+      && loc.lat >= -90 && loc.lat <= 90 && loc.lon >= -180 && loc.lon <= 180;
+  }
+
   function load() {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { /* storage unavailable or corrupt */ }
     if (!saved || !Array.isArray(saved.projections)) saved = { location: DEFAULT_LOCATION, projections: [] };
-    saved.view = { ...DEFAULT_VIEW, ...saved.view };
+    if (!isLocation(saved.location)) saved.location = DEFAULT_LOCATION;
+    const lead = Number(saved.view?.lead);
+    const range = saved.view?.range;
+    saved.view = {
+      lead: Verify.LEADS.includes(lead) ? lead : DEFAULT_VIEW.lead,
+      range: range === 'all' || range === 30 || range === 90 ? range : DEFAULT_VIEW.range,
+    };
     return saved;
   }
 
@@ -82,14 +94,14 @@
     verif = { status: 'loading' };
     renderVerify();
     const pastForecasts = Verify.forecasts(loc, Dates.today()).then(
-      (fc) => { if (token === loadToken) verif = { status: 'ready', fc }; },
+      (result) => { if (token === loadToken) verif = { status: 'ready', fc: result.leads, today: result.today }; },
       (err) => { if (token === loadToken) verif = { status: 'error', message: err.message }; },
     );
 
     try {
-      const [hist, fc] = await Promise.all([Weather.history(loc), Weather.forecast(loc)]);
+      const [hist, forecast] = await Promise.all([Weather.history(loc), Weather.forecast(loc)]);
       if (token !== loadToken) return;
-      data = { hist, fc };
+      data = { hist, fc: forecast.days, today: forecast.today || hist.today };
       setStatus('');
       renderAll();
     } catch (err) {
@@ -120,18 +132,20 @@
       <div>Rain ${(r.rain ?? r.precip).toFixed(2)}″${r.snow > 0.05 ? ` · Snow ${r.snow.toFixed(1)}″` : ''}${r.pop == null ? '' : ` · ${Math.round(r.pop)}% chance`}</div>`;
   }
 
+  let chartToday = null;
+
   function drawForecastChart() {
     if (!chartRows?.length) return;
     Chart.render($('fc-chart'), chartRows, {
       series: FORECAST_SERIES, tooltip: $('tooltip'), tip: forecastTip,
-      xLabel: (r, i) => (i === 0 ? 'Today' : Dates.short(r.date)),
+      xLabel: (r) => (r.date === chartToday ? 'Today' : Dates.short(r.date)),
       ariaLabel: 'Line chart of forecast high and low temperatures against 10-year normals for the next 16 days',
     });
   }
 
   function renderChart() {
-    const today = Dates.today();
-    chartRows = Object.keys(data.fc).sort().filter((d) => d >= today).map((date) => {
+    chartToday = data.today || Dates.today();
+    chartRows = Object.keys(data.fc).sort().filter((d) => d >= chartToday).map((date) => {
       const n = Scoring.dailyNormal(data.hist, date);
       return { date, ...data.fc[date], nmax: n?.tmax ?? null, nmin: n?.tmin ?? null };
     });
@@ -144,7 +158,7 @@
   function renderPrecip(rows) {
     const amount = (v, unit, min, digits) => (v == null || v < min ? '<span class="muted">—</span>' : `${v.toFixed(digits)}${unit}`);
     const tint = (v, full) => (v > 0 ? ` style="--amt:${Math.min(1, v / full).toFixed(2)}"` : '');
-    const head = (r, i) => `<div class="pc-head" role="columnheader">${i === 0 ? 'Today' : Dates.weekday(r.date)}<span>${Dates.short(r.date)}</span></div>`;
+    const head = (r) => `<div class="pc-head" role="columnheader">${r.date === chartToday ? 'Today' : Dates.weekday(r.date)}<span>${Dates.short(r.date)}</span></div>`;
     $('fc-precip').innerHTML = `
       <div class="pc-row" role="row"><div class="pc-label" role="rowheader"></div>${rows.map(head).join('')}</div>
       <div class="pc-row" role="row"><div class="pc-label" role="rowheader">Rain</div>
@@ -158,7 +172,7 @@
   // ---------- Forecast vs. actual ----------
 
   function verifyWindow() {
-    const today = Dates.today();
+    const today = verif.today || data?.today || Dates.today();
     const start = Verify.historyStart(today);
     const to = Dates.addDays(today, -1);
     const from = state.view.range === 'all' ? start : Dates.addDays(today, -state.view.range);
@@ -215,7 +229,8 @@
       return;
     }
 
-    const actual = { ...data.fc, ...data.hist.days };
+    // Observed days only. Forecast "past days" are the model, not what happened.
+    const actual = data.hist.days;
     const { from, to, start } = verifyWindow();
     const lead = state.view.lead;
     const rangeText = `${Dates.short(from)} – ${Dates.shortYear(to)}`;
@@ -354,12 +369,14 @@
   // ---------- Actions ----------
 
   $('log-model').addEventListener('click', () => {
-    if (!data) return;
-    const today = Dates.today();
+    if (!data) { setStatus('Weather is still loading.', true); return; }
+    const today = data.today || Dates.today();
     let added = 0;
+    let already = 0;
     for (const [from, to, name] of [[1, 7, 'days 1–7'], [8, 14, 'days 8–14']]) {
       const start = Dates.addDays(today, from);
       const end = Dates.addDays(today, to);
+      if (state.projections.some((p) => p.source === 'model' && p.start === start && p.end === end)) { already++; continue; }
       const call = Scoring.modelCall(data.hist, data.fc, start, end);
       if (!call) continue;
       state.projections.push({ id: newId(), created: today, source: 'model',
@@ -368,7 +385,9 @@
     }
     save();
     renderAll();
-    setStatus(added ? `Logged ${added} model calls — they'll be scored once the days pass.` : 'Not enough forecast data to log a model call.', !added);
+    setStatus(added
+      ? `Logged ${added} model call${added === 1 ? '' : 's'} — they'll be scored once the days pass.`
+      : already ? 'Those model calls are already in the ledger.' : 'Not enough forecast data to log a model call.', !added);
   });
 
   $('ledger').addEventListener('click', (e) => {
@@ -390,10 +409,13 @@
   $('export').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ app: 'almanac-ledger', version: 1, ...state }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `almanac-ledger-${Dates.today()}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
   });
 
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -407,8 +429,15 @@
       && typeof p.label === 'string' && p.label.length <= 200
       && typeof p.start === 'string' && DATE_RE.test(p.start)
       && typeof p.end === 'string' && DATE_RE.test(p.end) && p.end >= p.start
+      && Dates.diffDays(p.start, p.end) <= Dates.MAX_WINDOW_DAYS
       && CALLS.includes(p.temp) && CALLS.includes(p.precip)
       && (p.temp || p.precip);
+  }
+
+  const kept = state.projections.filter(isValidProjection);
+  if (kept.length !== state.projections.length) {
+    state.projections = kept;
+    save();
   }
 
   $('import').addEventListener('click', () => $('import-file').click());
@@ -428,13 +457,28 @@
       const have = new Set(state.projections.map((p) => p.id));
       const added = valid.filter((p) => !have.has(p.id));
       state.projections.push(...added);
+      let moved = false;
+      if (isLocation(incoming.location)) {
+        const next = { name: incoming.location.name.trim(), lat: incoming.location.lat, lon: incoming.location.lon };
+        moved = next.lat !== state.location.lat || next.lon !== state.location.lon || next.name !== state.location.name;
+        if (moved) state.location = next;
+      }
+      if (incoming.view && typeof incoming.view === 'object') {
+        const lead = Number(incoming.view.lead);
+        const range = incoming.view.range;
+        if (Verify.LEADS.includes(lead)) state.view.lead = lead;
+        if (range === 'all' || range === 30 || range === 90) state.view.range = range;
+      }
       save();
-      renderAll();
+      if (moved) await refresh();
+      else renderAll();
       const notes = [];
       if (valid.length > added.length) notes.push(`${valid.length - added.length} already in the ledger`);
       const invalid = incoming.projections.length - valid.length;
       if (invalid) notes.push(`${invalid} skipped as invalid`);
-      setStatus(`Imported ${added.length} projection${added.length === 1 ? '' : 's'}${notes.length ? ` (${notes.join(', ')})` : ''}.`);
+      if (moved) notes.push(`location set to ${state.location.name}`);
+      const summary = `Imported ${added.length} projection${added.length === 1 ? '' : 's'}${notes.length ? ` (${notes.join(', ')})` : ''}.`;
+      if (!$('status').classList.contains('error')) setStatus(summary);
     } catch (err) {
       setStatus(`That file couldn't be imported (${err.message}).`, true);
     }
@@ -442,7 +486,7 @@
 
   // Example entries: made-up calls placed on recent months (already scorable) and upcoming ones (still waiting).
   $('load-example').addEventListener('click', () => {
-    if (!data) return;
+    if (!data) { setStatus('Weather is still loading.', true); return; }
     const [y, m] = data.hist.lastDate.split('-').map(Number);
     const month = (offset) => {
       const d = new Date(Date.UTC(y, m - 1 + offset, 1));
@@ -461,14 +505,20 @@
       ['lore', 1, 'below', null, 'geese flying south early'],
       ['almanac', 2, 'below', 'normal', 'frosty, then fair'],
     ];
+    const have = new Set(state.projections.map((p) => p.label));
+    let added = 0;
     for (const [source, off, temp, precip, words] of ex) {
       const w = month(off);
-      state.projections.push({ id: newId(), created: Dates.today(), source, start: w.start, end: w.end, temp, precip,
-        label: `Example: ${w.name} — “${words}”` });
+      const label = `Example: ${w.name} — “${words}”`;
+      if (have.has(label)) continue;
+      state.projections.push({ id: newId(), created: data.today || Dates.today(), source, start: w.start, end: w.end, temp, precip, label });
+      added++;
     }
     save();
     renderAll();
-    setStatus('Loaded example entries. They’re invented calls — swap in real ones from your almanac.');
+    setStatus(added
+      ? 'Loaded example entries. They’re invented calls — swap in real ones from your almanac.'
+      : 'Example entries are already loaded.');
   });
 
   // ---------- DAKboard display setup ----------

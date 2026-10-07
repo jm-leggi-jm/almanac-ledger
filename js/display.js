@@ -55,18 +55,17 @@
 
   // ---------- Data ----------
 
-  let fc = null;              // forecast incl. the last 7 days (fills in the most recent actuals)
   let recent = null;          // observed days covering the window
   let pastFc = null;          // what forecasts said 1–7 days ahead
+  let locToday = Dates.today();
   let lastOk = null;
 
   async function load() {
-    const today = Dates.today();
-    const from = Dates.addDays(today, -DAYS);
+    const browserToday = Dates.today();
+    const from = Dates.addDays(browserToday, -(DAYS + 1));
     const results = await Promise.allSettled([
-      Weather.forecast(loc).then((d) => { fc = d; }),
-      Weather.recent(loc, Dates.addDays(from, -1)).then((d) => { recent = d; }),
-      Verify.forecasts(loc, today, from).then((d) => { pastFc = d; }),
+      Weather.recent(loc, from).then((d) => { recent = d.days; if (d.today) locToday = d.today; }),
+      Verify.forecasts(loc, browserToday, from).then((d) => { pastFc = d.leads; if (d.today) locToday = d.today; }),
     ]);
     const failed = results.filter((r) => r.status === 'rejected').length;
     if (failed < results.length) lastOk = new Date();
@@ -88,10 +87,11 @@
   // time (1–7 days ahead), so you can see accuracy fall off the further out a forecast is.
   function render() {
     const body = $('body-accuracy');
-    if (!pastFc || !recent || !fc) return;
-    const today = Dates.today();
-    const actual = { ...fc, ...recent };
-    const rowsFor = (k) => Verify.pairs(pastFc, actual, k, Dates.addDays(today, -DAYS), Dates.addDays(today, -1));
+    if (!pastFc || !recent) {
+      body.innerHTML = `<p class="panel-wait">${lastOk ? 'Accuracy data unavailable' : 'Waiting for observed weather…'}</p>`;
+      return;
+    }
+    const rowsFor = (k) => Verify.pairs(pastFc, recent, k, Dates.addDays(locToday, -DAYS), Dates.addDays(locToday, -1));
     const s = Verify.summarize(rowsFor(lead));
     if (!s) { body.innerHTML = '<p class="panel-wait">No data yet</p>'; return; }
     const pct = (a) => `${Math.round((a / s.n) * 100)}%`;

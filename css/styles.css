@@ -144,18 +144,26 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 /* Chart */
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
 .key { display: inline-flex; align-items: center; gap: 6px; }
-.chart { width: 100%; }
-.chart svg { display: block; width: 100%; height: auto; }
+.chart { width: 100%; min-width: 0; }
+.chart svg { display: block; width: 100%; max-width: 100%; height: auto; }
 .chart .grid { stroke: var(--grid); stroke-width: 1; }
 .chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .chart .end-label { fill: var(--text-2); font-size: 12px; font-weight: 600; }
 .chart .cross { stroke: var(--axis); stroke-width: 1; }
 .chart .dot { stroke: var(--surface); stroke-width: 2; }
 
-/* Rain and snow by day, under the 16-day chart: a label column, then one column per day */
-.fc-precip { margin-top: 10px; display: grid; gap: 3px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.pc-row { display: grid; grid-template-columns: 52px repeat(16, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
-.pc-label { color: var(--muted); font-size: 11px; align-self: center; }
+/* Rain and snow by day, under the 16-day chart: a label column, then one column per day.
+   Columns keep a readable width and the row scrolls sideways on a phone. */
+.fc-precip {
+  margin-top: 10px; display: grid; gap: 3px; font-size: 12px; font-variant-numeric: tabular-nums;
+  overflow-x: auto; min-width: 0; max-width: 100%; -webkit-overflow-scrolling: touch;
+}
+.pc-row { display: flex; gap: 3px; align-items: stretch; min-width: 100%; width: max-content; }
+.pc-label {
+  flex: 0 0 52px; position: sticky; left: 0; z-index: 1; background: var(--surface);
+  display: flex; align-items: center; color: var(--muted); font-size: 11px;
+}
+.pc-head, .pc-cell { flex: 1 0 44px; min-width: 44px; }
 .pc-head { text-align: center; font-weight: 600; color: var(--text-2); font-size: 11px; line-height: 1.2; }
 .pc-head span { display: block; font-weight: 400; color: var(--muted); }
 .pc-cell { text-align: center; padding: 3px 0; border-radius: 4px; }
@@ -216,7 +224,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 /* Accuracy by lead time */
 .lead-row {
-  display: grid; grid-template-columns: 96px 1fr 52px; align-items: center; gap: 2px 10px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 10px;
   width: 100%; padding: 7px 8px; margin: 0; text-align: left; font-weight: 400;
   background: none; color: var(--text-1); border: 0; border-radius: 6px;
 }
@@ -227,7 +235,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .lead-row.on .lead-bar, .lead-row:hover .lead-bar { background: var(--surface); }
 .lead-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--s1); }
 .lead-row strong { font-variant-numeric: tabular-nums; text-align: right; }
-.lead-row .small { grid-column: 2 / -1; white-space: nowrap; }
+.lead-row .small { grid-column: 2 / -1; }
 
 /* Forecast vs. actual */
 .va-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -270,12 +278,23 @@ td { border-bottom: 1px solid var(--grid); padding: 8px; vertical-align: top; }
   .span-2 { grid-column: auto; }
   .loc { flex-basis: 100%; }
   h1 { font-size: 26px; }
+  /* 16px keeps iOS from zooming the page when a field is focused. */
+  input, select, textarea { font-size: 16px; }
+  .radar-map { height: 260px; }
+  .radar-zoom button { width: 44px; height: 44px; }
+  button.icon { min-width: 44px; min-height: 44px; }
+  .loc-results button { padding: 12px 10px; }
+  .radar-time { min-width: 0; }
+  .dd-grid { grid-template-columns: 1fr; }
+  .dd-actions { flex-wrap: wrap; }
+  .dd-actions button { flex: 1 1 auto; }
 }
 
 /* DAKboard display setup */
 .top-link { align-self: center; margin-left: auto; }
 .dialog {
-  width: min(560px, calc(100vw - 32px)); padding: 20px 22px; border: 1px solid var(--border); border-radius: 12px;
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+  overflow: auto; padding: 20px 22px; border: 1px solid var(--border); border-radius: 12px;
   background: var(--surface); color: var(--text-1); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 .dialog::backdrop { background: rgba(0, 0, 0, 0.45); }

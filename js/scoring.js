@@ -4,8 +4,14 @@ const Scoring = (() => {
   const VALUE = { below: -1, normal: 0, above: 1 };
 
   function statsFor(days, dates) {
+    if (!dates.length) return null;
+    // Feb 29 shifts onto Feb 28 in non-leap years. Count that day once; scale totals
+    // back to the original window length so a 29-day month stays comparable.
+    const seen = new Set();
     let temp = 0, precip = 0, snow = 0, n = 0;
     for (const d of dates) {
+      if (seen.has(d)) continue;
+      seen.add(d);
       const day = days[d];
       if (!day) continue;
       temp += (day.tmax + day.tmin) / 2;
@@ -14,7 +20,6 @@ const Scoring = (() => {
       n++;
     }
     if (n < dates.length * 0.8) return null;
-    // Scale totals up for the few missing days so windows stay comparable.
     const scale = dates.length / n;
     return { temp: temp / n, precip: precip * scale, snow: snow * scale };
   }
@@ -69,6 +74,7 @@ const Scoring = (() => {
   // Evaluate one projection against observed data (verified) or observed + forecast days (tracking).
   function evaluate(p, hist, fcDays) {
     const dates = Dates.range(p.start, p.end);
+    if (!dates.length) return { status: 'nodata' };
     if (p.end <= hist.lastDate) {
       const actual = statsFor(hist.days, dates);
       const samples = normalSamples(hist, dates);
@@ -91,7 +97,7 @@ const Scoring = (() => {
   // 10-year average high/low for a calendar day, smoothed over ±3 days.
   function dailyNormal(hist, date) {
     const hi = [], lo = [];
-    for (let k = 1; k <= NORMAL_YEARS + 1; k++) {
+    for (let k = 1; k <= NORMAL_YEARS; k++) {
       for (let o = -3; o <= 3; o++) {
         const day = hist.days[Dates.addDays(Dates.shiftYears(date, k), o)];
         if (day) { hi.push(day.tmax); lo.push(day.tmin); }
