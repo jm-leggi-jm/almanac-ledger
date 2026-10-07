@@ -285,9 +285,6 @@ td { border-bottom: 1px solid var(--grid); padding: 8px; vertical-align: top; }
   button.icon { min-width: 44px; min-height: 44px; }
   .loc-results button { padding: 12px 10px; }
   .radar-time { min-width: 0; }
-  .dd-grid { grid-template-columns: 1fr; }
-  .dd-actions { flex-wrap: wrap; }
-  .dd-actions button { flex: 1 1 auto; }
 }
 
 /* DAKboard display setup */
@@ -308,3 +305,10 @@ td { border-bottom: 1px solid var(--grid); padding: 8px; vertical-align: top; }
 }
 .dd-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 760px) {
+  .dd-grid { grid-template-columns: 1fr; }
+  .dd-actions { flex-wrap: wrap; }
+  .dd-actions button { flex: 1 1 auto; }
+  .dd-url-label textarea { font-size: 16px; }
+}

@@ -5,6 +5,13 @@ const Chart = (() => {
   const DEFAULT_HEIGHT = 260;
   const M = { top: 14, right: 44, bottom: 28, left: 36 };
   const aborts = new WeakMap();
+  // Both charts share one tooltip, so a tap on one must not be treated as "outside" by the other.
+  let active = null;
+  document.addEventListener('pointerdown', (evt) => {
+    if (evt.target.closest?.('.chart')) return;
+    active?.hide();
+  });
+  window.addEventListener('scroll', () => active?.hide(), true);
 
   function el(name, attrs = {}, parent) {
     const node = document.createElementNS(NS, name);
@@ -35,7 +42,10 @@ const Chart = (() => {
     aborts.get(container)?.abort();
     const ac = new AbortController();
     aborts.set(container, ac);
-    if (tooltip) tooltip.hidden = true;
+    if (active?.container === container) {
+      active = null;
+      if (tooltip) tooltip.hidden = true;
+    }
     const H = Math.max(160, opts.height || DEFAULT_HEIGHT);
     container.innerHTML = '';
     // Match the box we were given so the SVG's intrinsic width can't widen the page.
@@ -113,19 +123,26 @@ const Chart = (() => {
       tooltip.style.top = `${top}px`;
     }
     function hide() {
-      tooltip.hidden = true;
       cross.setAttribute('visibility', 'hidden');
       dots.forEach((d) => d.setAttribute('visibility', 'hidden'));
+      if (active && active.hide === hide) {
+        tooltip.hidden = true;
+        active = null;
+      }
     }
+    const showTip = (evt) => {
+      if (active && active.hide !== hide) active.hide();
+      active = { hide, container };
+      show(evt);
+    };
     const listen = { signal: ac.signal };
-    hit.addEventListener('pointerdown', show, listen);
-    hit.addEventListener('pointermove', show, listen);
-    hit.addEventListener('pointerleave', hide, listen);
-    hit.addEventListener('pointercancel', hide, listen);
-    document.addEventListener('pointerdown', (evt) => {
-      if (!container.contains(evt.target)) hide();
+    hit.addEventListener('pointerdown', showTip, listen);
+    hit.addEventListener('pointermove', showTip, listen);
+    hit.addEventListener('pointerleave', (evt) => {
+      if (evt.pointerType === 'touch') return;
+      hide();
     }, listen);
-    window.addEventListener('scroll', hide, { ...listen, capture: true });
+    hit.addEventListener('pointercancel', hide, listen);
   }
 
   return { render, legend };
