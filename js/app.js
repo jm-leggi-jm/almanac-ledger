@@ -435,10 +435,30 @@
   }
 
   const kept = state.projections.filter(isValidProjection);
-  if (kept.length !== state.projections.length) {
+  const droppedSaved = state.projections.length - kept.length;
+  if (droppedSaved > 0) {
     state.projections = kept;
     save();
   }
+
+  // Entries that fail validation (usually a window older than or outside the
+  // 366-day limit) are skipped, not loaded. Say so in the ledger instead of
+  // dropping them silently; the banner is non-blocking and dismissible.
+  function renderBootNotice() {
+    const el = $('ledger-notice');
+    if (!el) return;
+    if (!droppedSaved) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.innerHTML = `<span>Skipped ${droppedSaved} saved projection${droppedSaved === 1 ? '' : 's'} older than or outside the 366-day window.</span>`
+      + ' <button type="button" class="icon" data-dismiss-notice aria-label="Dismiss notice">×</button>';
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-dismiss-notice]')) {
+      const el = $('ledger-notice');
+      if (el) { el.hidden = true; el.innerHTML = ''; }
+    }
+  });
+  renderBootNotice();
 
   $('import').addEventListener('click', () => $('import-file').click());
 

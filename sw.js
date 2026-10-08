@@ -1,5 +1,5 @@
 // Service worker: lets the installed app open without the local server, and shows the last weather seen when offline.
-const SHELL_CACHE = 'shell-v14';
+const SHELL_CACHE = 'shell-v15';
 const DATA_CACHE = 'weather-data-v1';
 const SHELL_FILES = [
   './', 'index.html', 'display.html', 'manifest.webmanifest', 'css/styles.css', 'css/display.css',

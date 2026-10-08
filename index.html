@@ -91,7 +91,19 @@
           <button type="button" id="clear-all" class="ghost small danger">Clear ledger</button>
         </div>
       </div>
+      <p id="ledger-notice" class="notice" role="status" hidden></p>
       <div id="ledger" class="table-wrap"></div>
+    </section>
+
+    <section class="card span-2" aria-labelledby="changelog-title">
+      <div class="card-head">
+        <h2 id="changelog-title">Change Log</h2>
+        <span class="muted small">Dates in US Central time</span>
+      </div>
+      <ul class="changelog">
+        <li><strong>October 7, 2026</strong> — The ledger now tells you when saved projections are skipped as older than or outside the 366-day window instead of dropping them silently.</li>
+        <li><strong>October 7, 2026</strong> — Fixed forecast scoring against observed archive days, used each location's own calendar date, and fixed the phone layout (chart tips, display dialog, rain row).</li>
+      </ul>
     </section>
   </main>
 
