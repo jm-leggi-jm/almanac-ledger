@@ -28,25 +28,34 @@ const Verify = (() => {
     return days;
   }
 
+  // Six calendar months back. Clamping the day avoids Jan 31 → "Sep 31" rolling into October.
   function historyStart(today) {
     const [y, m, d] = today.split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1 - HISTORY_MONTHS, d)).toISOString().slice(0, 10);
+    const target = new Date(Date.UTC(y, m - 1 - HISTORY_MONTHS, 1));
+    const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+    target.setUTCDate(Math.min(d, last));
+    return target.toISOString().slice(0, 10);
   }
 
-  // -> { [lead]: { [date]: { tmax, tmin, precip } } } from `start` (default: HISTORY_MONTHS ago) to yesterday.
+  // -> { leads: { [lead]: { [date]: day } }, today } from `start` through the last complete local day.
+  // `today` is the viewer's date; the response offset decides which day is "today" at the spot.
   async function forecasts(loc, today, start = historyStart(today)) {
     const vars = LEADS.flatMap((k) => [`temperature_2m_previous_day${k}`, `precipitation_previous_day${k}`]).join(',');
     const url = `${API}?latitude=${loc.lat}&longitude=${loc.lon}&hourly=${vars}`
-      + `&start_date=${start}&end_date=${Dates.addDays(today, -1)}`
+      + `&start_date=${start}&end_date=${today}`
       + '&temperature_unit=fahrenheit&precipitation_unit=inch&timezone=auto';
     const res = await fetch(url);
     if (!res.ok) throw new Error(`${res.status} from ${new URL(url).host}`);
-    const { hourly } = await res.json();
+    const data = await res.json();
+    const { hourly } = data;
+    const locToday = Dates.todayAt(data.utc_offset_seconds);
     const out = {};
     for (const k of LEADS) {
-      out[k] = dailyFromHourly(hourly.time, hourly[`temperature_2m_previous_day${k}`], hourly[`precipitation_previous_day${k}`]);
+      const days = dailyFromHourly(hourly.time, hourly[`temperature_2m_previous_day${k}`], hourly[`precipitation_previous_day${k}`]);
+      for (const date of Object.keys(days)) if (date >= locToday) delete days[date];
+      out[k] = days;
     }
-    return out;
+    return { leads: out, today: locToday };
   }
 
   // One row per day in [from, to]: the actual weather and what was forecast `lead` days before it.

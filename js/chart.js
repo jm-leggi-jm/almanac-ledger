@@ -4,6 +4,14 @@ const Chart = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const DEFAULT_HEIGHT = 260;
   const M = { top: 14, right: 44, bottom: 28, left: 36 };
+  const aborts = new WeakMap();
+  // Both charts share one tooltip, so a tap on one must not be treated as "outside" by the other.
+  let active = null;
+  document.addEventListener('pointerdown', (evt) => {
+    if (evt.target.closest?.('.chart')) return;
+    active?.hide();
+  });
+  window.addEventListener('scroll', () => active?.hide(), true);
 
   function el(name, attrs = {}, parent) {
     const node = document.createElementNS(NS, name);
@@ -20,17 +28,28 @@ const Chart = (() => {
 
   function niceTicks(min, max) {
     const step = (max - min) > 40 ? 10 : 5;
+    let lo = Math.floor(min / step) * step;
+    let hi = Math.ceil(max / step) * step;
+    if (hi === lo) { lo -= step; hi += step; }
     const ticks = [];
-    for (let v = Math.ceil(min / step) * step; v <= max; v += step) ticks.push(v);
-    return { ticks, lo: Math.floor(min / step) * step, hi: Math.ceil(max / step) * step };
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) ticks.push(v);
+    return { ticks, lo, hi };
   }
 
   // opts: { series, tooltip (element), tip(row) -> html, xLabel(row, i) -> string, ariaLabel, height? }
   function render(container, rows, opts) {
     const { series, tooltip, tip, xLabel, ariaLabel } = opts;
+    aborts.get(container)?.abort();
+    const ac = new AbortController();
+    aborts.set(container, ac);
+    if (active?.container === container) {
+      active = null;
+      if (tooltip) tooltip.hidden = true;
+    }
     const H = Math.max(160, opts.height || DEFAULT_HEIGHT);
     container.innerHTML = '';
-    const W = Math.max(320, container.clientWidth);
+    // Match the box we were given so the SVG's intrinsic width can't widen the page.
+    const W = Math.max(240, container.clientWidth || 240);
     const iw = W - M.left - M.right;
     const ih = H - M.top - M.bottom;
     const vals = rows.flatMap((r) => series.map((s) => r[s.key])).filter((v) => v != null);
@@ -79,6 +98,7 @@ const Chart = (() => {
 
     function show(evt) {
       const box = svg.getBoundingClientRect();
+      if (!box.width) return;
       const px = ((evt.clientX - box.left) / box.width) * W;
       const i = Math.max(0, Math.min(rows.length - 1, Math.round(((px - M.left) / iw) * (rows.length - 1))));
       const r = rows[i];
@@ -90,17 +110,39 @@ const Chart = (() => {
       });
       tooltip.innerHTML = tip(r);
       tooltip.hidden = false;
-      const tx = Math.min(evt.clientX + 14, window.innerWidth - tooltip.offsetWidth - 8);
-      tooltip.style.left = `${tx}px`;
-      tooltip.style.top = `${evt.clientY + 14}px`;
+      const margin = 8;
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      let left = evt.clientX + 14;
+      let top = evt.clientY + 14;
+      if (left + tw > window.innerWidth - margin) left = evt.clientX - tw - 14;
+      if (left < margin) left = margin;
+      if (top + th > window.innerHeight - margin) top = evt.clientY - th - 14;
+      if (top < margin) top = margin;
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
     }
     function hide() {
-      tooltip.hidden = true;
       cross.setAttribute('visibility', 'hidden');
       dots.forEach((d) => d.setAttribute('visibility', 'hidden'));
+      if (active && active.hide === hide) {
+        tooltip.hidden = true;
+        active = null;
+      }
     }
-    hit.addEventListener('pointermove', show);
-    hit.addEventListener('pointerleave', hide);
+    const showTip = (evt) => {
+      if (active && active.hide !== hide) active.hide();
+      active = { hide, container };
+      show(evt);
+    };
+    const listen = { signal: ac.signal };
+    hit.addEventListener('pointerdown', showTip, listen);
+    hit.addEventListener('pointermove', showTip, listen);
+    hit.addEventListener('pointerleave', (evt) => {
+      if (evt.pointerType === 'touch') return;
+      hide();
+    }, listen);
+    hit.addEventListener('pointercancel', hide, listen);
   }
 
   return { render, legend };

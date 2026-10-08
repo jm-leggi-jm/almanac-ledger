@@ -6,7 +6,6 @@ const Weather = (() => {
   const DAILY = 'temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum';
   const UNITS = 'temperature_unit=fahrenheit&precipitation_unit=inch&timezone=auto';
   const HISTORY_YEARS = 12;   // 10 years of normals plus room for windows that end next year
-  const ARCHIVE_LAG_DAYS = 6; // the reanalysis archive trails real time by ~5 days
 
   async function getJSON(url) {
     const res = await fetch(url);
@@ -43,35 +42,57 @@ const Weather = (() => {
 
   const historyCache = new Map();
 
+  // The archive's newest allowed day moves. Ask through the viewer's today, and if that's past
+  // the published range, retry through the date named in the error instead of failing the load.
+  async function archiveJSON(loc, start, end) {
+    const urlFor = (endDate) =>
+      `${ARCHIVE}?latitude=${loc.lat}&longitude=${loc.lon}&start_date=${start}&end_date=${endDate}&daily=${DAILY}&${UNITS}`;
+    let res = await fetch(urlFor(end));
+    if (res.status === 400) {
+      let reason = '';
+      try { reason = (await res.json()).reason || ''; } catch { /* body wasn't JSON */ }
+      const allowed = /to (\d{4}-\d{2}-\d{2})/.exec(reason)?.[1];
+      if (allowed && allowed >= start && allowed < end) res = await fetch(urlFor(allowed));
+    }
+    if (!res.ok) throw new Error(`${res.status} from ${new URL(ARCHIVE).host}`);
+    return res.json();
+  }
+
+  // Drop the location's current day — its high and total aren't final yet.
+  function completeDays(data) {
+    const today = Dates.todayAt(data.utc_offset_seconds);
+    const days = toDayMap(data.daily);
+    for (const date of Object.keys(days)) if (date >= today) delete days[date];
+    return { days, today };
+  }
+
   async function history(loc) {
     const key = `${loc.lat.toFixed(3)},${loc.lon.toFixed(3)}`;
     if (!historyCache.has(key)) {
-      const end = Dates.addDays(Dates.today(), -ARCHIVE_LAG_DAYS);
-      const start = Dates.shiftYears(end, HISTORY_YEARS);
-      const promise = getJSON(`${ARCHIVE}?latitude=${loc.lat}&longitude=${loc.lon}&start_date=${start}&end_date=${end}&daily=${DAILY}&${UNITS}`)
-        .then((data) => {
-          const days = toDayMap(data.daily);
-          const dates = Object.keys(days).sort();
-          return { days, lastDate: dates[dates.length - 1] };
-        });
+      const browserToday = Dates.today();
+      const start = Dates.shiftYears(browserToday, HISTORY_YEARS);
+      const promise = archiveJSON(loc, start, browserToday).then((data) => {
+        const { days, today } = completeDays(data);
+        const dates = Object.keys(days).sort();
+        if (!dates.length) throw new Error('no observed days');
+        return { days, lastDate: dates[dates.length - 1], today };
+      });
       promise.catch(() => historyCache.delete(key));
       historyCache.set(key, promise);
     }
     return historyCache.get(key);
   }
 
-  // Observed days from `start` up to the archive's last date — a light fetch for the wall display,
-  // which only needs recent weather, not 12 years of normals.
+  // Observed days from `start` through the last complete local day — a light fetch for the wall display.
   async function recent(loc, start) {
-    const end = Dates.addDays(Dates.today(), -ARCHIVE_LAG_DAYS);
-    const data = await getJSON(`${ARCHIVE}?latitude=${loc.lat}&longitude=${loc.lon}&start_date=${start}&end_date=${end}&daily=${DAILY}&${UNITS}`);
-    return toDayMap(data.daily);
+    const data = await archiveJSON(loc, start, Dates.today());
+    return completeDays(data);
   }
 
-  // past_days bridges the gap between the archive's last date and today.
+  // past_days covers recent days the archive hasn't published yet, for in-progress ledger windows.
   async function forecast(loc) {
     const data = await getJSON(`${FORECAST}?latitude=${loc.lat}&longitude=${loc.lon}&daily=${DAILY},rain_sum,precipitation_probability_max&past_days=7&forecast_days=16&${UNITS}`);
-    return toDayMap(data.daily);
+    return { days: toDayMap(data.daily), today: Dates.todayAt(data.utc_offset_seconds) };
   }
 
   return { geocode, history, recent, forecast };
