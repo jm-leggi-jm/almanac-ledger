@@ -449,7 +449,7 @@
     if (!el) return;
     if (!droppedSaved) { el.hidden = true; el.innerHTML = ''; return; }
     el.hidden = false;
-    el.innerHTML = `<span>Skipped ${droppedSaved} saved projection${droppedSaved === 1 ? '' : 's'} older than or outside the 366-day window.</span>`
+    el.innerHTML = `<span>Skipped ${droppedSaved} saved projection${droppedSaved === 1 ? '' : 's'} that failed validation.</span>`
       + ' <button type="button" class="icon" data-dismiss-notice aria-label="Dismiss notice">×</button>';
   }
   document.addEventListener('click', (e) => {
